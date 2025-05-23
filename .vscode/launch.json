@@ -1,16 +1,20 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-      {
-        "name": "Streamlit: Debug App",
-        "type": "python",
-        "request": "launch",
-        "program": "${workspaceFolder}/app/main.py",
-        "console": "integratedTerminal",
-        "env": {
-          "STREAMLIT_SERVER_RUN_ON_SAVE": "true"
-        }
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Streamlit: Run App",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/venv_002.04.02.04.01_DA-CodeFrontend/bin/streamlit",
+      "args": [
+        "run",
+        "app/main.py"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "STREAMLIT_SERVER_RUN_ON_SAVE": "true"
       }
-    ]
-  }
-  
+    }
+  ]
+}
