@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Streamlit: Debug App",
+        "type": "python",
+        "request": "launch",
+        "program": "${workspaceFolder}/app/main.py",
+        "console": "integratedTerminal",
+        "env": {
+          "STREAMLIT_SERVER_RUN_ON_SAVE": "true"
+        }
+      }
+    ]
+  }
+  
