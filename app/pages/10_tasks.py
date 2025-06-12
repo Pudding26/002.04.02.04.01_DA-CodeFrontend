@@ -1,88 +1,118 @@
+import os
 import streamlit as st
 import httpx
+from dotenv import load_dotenv
 
+# --- Setup ---
+load_dotenv()
+BACKEND_HOST = os.getenv("BACKEND_ORCH_BASE_URL")
+BACKEND_HOST = "localhost"
+BACKEND_PORT = os.getenv("BACKEND_ORCH_BASE_PORT", "8000")
+DEBUG_MODE = os.getenv("DEBUG_MODE")
+
+
+BASE_URL = f"http://{BACKEND_HOST}:{BACKEND_PORT}"
 
 st.title("Available Tasks")
 
-# Load tasks only once per session
+# --- Utility Functions ---
+def get_tasks():
+    return httpx.get(f"{BASE_URL}/tasks/").json().get("possible_tasks", [])
+
+def reload_instructions():
+    try:
+        resp = httpx.post(f"{BASE_URL}/tasks/reload", timeout=5)
+        st.session_state["reload_success"] = resp.json().get("message", "Reloaded")
+        st.session_state.pop("task_data", None)
+        st.rerun()
+    except Exception as e:
+        st.session_state["reload_success"] = f"❌ {e}"
+
+def run_task(task_name):
+    return httpx.post(f"{BASE_URL}/tasks/start", json={"task_name": task_name})
+
+def stop_task(task_name):
+    return httpx.post(f"{BASE_URL}/tasks/stop", json={"task_name": task_name})
+
+def control_task(task_name, action):
+    return httpx.post(f"{BASE_URL}/tasks/control", json={"task_name": task_name, "action": action})
+
+# --- Load Tasks Once ---
 if "task_data" not in st.session_state:
-    response = httpx.get("http://localhost:8000/tasks/")
-    st.session_state.task_data = response.json()["possible_tasks"]
+    st.session_state.task_data = get_tasks()
 
 task_data = st.session_state.task_data
-col1, col2 = st.columns([1, 3])
 
+# --- Reload Instructions UI ---
+col1, col2 = st.columns([1, 3])
 with col1:
     if st.button("🔁 Reload Instructions", key="reload_btn"):
-        try:
-            resp = httpx.post("http://localhost:8000/tasks/reload", timeout=5)
-            st.session_state["reload_success"] = resp.json().get("message", "Reloaded")
-            # Clear task list so it reloads on next render
-            if "task_data" in st.session_state:
-                del st.session_state["task_data"]
-            st.rerun()
-        except Exception as e:
-            st.session_state["reload_success"] = f"❌ {e}"
+        reload_instructions()
 
-# Show the message next to the button (if it exists)
 with col2:
     if "reload_success" in st.session_state:
         st.success(st.session_state["reload_success"])
 
-# UI: Task group and task selection
+# --- Task Selection ---
 selected_group = st.selectbox("Select Task Group", [g["group"] for g in task_data])
 
-selected_task = None
-for group in task_data:
-    if group["group"] == selected_group:
-        selected_task = st.selectbox("Select Task", group["tasks"])
+selected_task = next(
+    (st.selectbox("Select Task", group["tasks"]) for group in task_data if group["group"] == selected_group),
+    None
+)
 
-# Optional reload button (clears and re-fetches)
+# --- Task Controls ---
 if st.button("🔄 Reload task list"):
-    del st.session_state["task_data"]
+    st.session_state.pop("task_data", None)
     st.rerun()
 
-# Display selected task
 if st.button("Show Task Info"):
     st.write(f"Group: {selected_group}")
     st.write(f"Task: {selected_task}")
 
 if st.button("🚀 Run Task"):
-    resp = httpx.post("http://localhost:8000/tasks/start", json={"task_name": selected_task})
+    resp = run_task(selected_task)
     st.success(resp.json())
 
-
 if st.button("🛑 Stop Task"):
-    resp = httpx.post("http://localhost:8000/tasks/stop", json={"task_name": selected_task})
+    resp = stop_task(selected_task)
     st.warning(resp.json())
 
 
-response = httpx.get("http://localhost:8000/tasks/status")
-tasks = response.json()
+# --- Fetch all task statuses once to extract task names ---
+initial_response = httpx.get(f"{BASE_URL}/tasks/status")
+initial_tasks = initial_response.json()
+task_names = [task["task_name"] for task in initial_tasks]
 
-for task in tasks:
-    @st.fragment
-    def render_task(task=task):
-        with st.expander(task["task_name"]):
-            st.write(f"Status: {task['status']}")
-            st.write(f"Message: {task['message']}")
+# --- Fragment for each task ---
+for task_name in task_names:
+    @st.fragment(run_every="1s")  # reasonable polling interval
+    def render_task(taskname=task_name):  # default arg avoids closure bugs
+        # Fetch only the current task's status
+        response = httpx.get(f"{BASE_URL}/tasks/status")
+        tasks = response.json()
+        task = next((t for t in tasks if t["task_name"] == taskname), None)
+
+        if not task:
+            st.warning(f"Task {taskname} not found.")
+            return
+
+        with st.expander(task["task_name"], expanded=True):
+            st.write(f"**Status:** {task['status']}")
+            st.write(f"**Message:** {task['message']}")
             st.progress(task["progress"])
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button(f"⏹ Stop {task['task_name']}", key=f"stop_{task['task_name']}"):
-                    httpx.post("http://localhost:8000/tasks/stop", json={"task_name": task["task_name"]})
+                if st.button(f"⏹ Stop", key=f"stop_{task['task_name']}"):
+                    stop_task(task["task_name"])
             with col2:
                 toggle_label = "⏸ Pause" if task["status"] != "Paused" else "▶️ Resume"
-                if st.button(f"{toggle_label} {task['task_name']}", key=f"pause_{task['task_name']}"):
+                if st.button(f"{toggle_label}", key=f"pause_{task['task_name']}"):
                     action = "pause" if task["status"] != "Paused" else "resume"
-                    httpx.post("http://localhost:8000/tasks/control", json={
-                        "task_name": task["task_name"],
-                        "action": action
-                    })
+                    control_task(task["task_name"], action)
 
-            st.rerun()
-    render_task(task)
-
+    # 👇 Render each fragment with the specific task name
+    render_task(task_name)
 
 
