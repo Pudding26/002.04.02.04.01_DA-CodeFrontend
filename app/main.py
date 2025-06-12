@@ -1,7 +1,13 @@
 import streamlit as st
 import requests
+from dotenv import load_dotenv
+import os
 
-ORCHESTRATOR_URL = "http://localhost:8000"
+
+load_dotenv()
+
+ORCHESTRATOR_URL = "http://" + os.getenv("BACKEND_ORCH_BASE_URL") + ":" + os.getenv("BACKEND_ORCH_BASE_PORT")
+
 
 st.title("Mockup Frontend")
 
