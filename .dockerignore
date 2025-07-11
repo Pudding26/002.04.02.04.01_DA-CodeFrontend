@@ -4,6 +4,5 @@ __pycache__/
 *.pyd
 *.log
 *.tmp
-.vscode/
 .git/
 venv_002.04.02.04.01_DA-CodeFrontend/

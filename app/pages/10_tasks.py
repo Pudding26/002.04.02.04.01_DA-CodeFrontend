@@ -1,13 +1,15 @@
 import os
 import streamlit as st
 import httpx
+import time
 from dotenv import load_dotenv
 
 # --- Setup ---
 load_dotenv()
 BACKEND_HOST = os.getenv("BACKEND_ORCH_BASE_URL")
-BACKEND_HOST = "localhost"
+BACKEND_HOST = "s003-c9501_lele-da-app"
 BACKEND_PORT = os.getenv("BACKEND_ORCH_BASE_PORT", "8000")
+BACKEND_PORT = "59501"
 DEBUG_MODE = os.getenv("DEBUG_MODE")
 
 

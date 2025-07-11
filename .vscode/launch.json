@@ -1,20 +1,22 @@
+// .vscode/launch.json
 {
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Streamlit: Run App",
-      "type": "python",
+      "name": "Launch Streamlit (in container)",
+      "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/venv_002.04.02.04.01_DA-CodeFrontend/bin/streamlit",
+      "program": "/usr/local/bin/streamlit",
       "args": [
         "run",
-        "app/main.py"
+        "app/main.py",
+        "--server.address=0.0.0.0",
+        "--server.port=8501"
       ],
-      "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "env": {
-        "STREAMLIT_SERVER_RUN_ON_SAVE": "true"
-      }
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
     }
+    
   ]
 }

@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+#RUN apt-get update
+
+
+WORKDIR /workspace
+
+# Copy requirements and install
+RUN pip install debugpy
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy all source
+
+# No CMD — VS Code will control
+CMD ["tail", "-f", "/dev/null"] 

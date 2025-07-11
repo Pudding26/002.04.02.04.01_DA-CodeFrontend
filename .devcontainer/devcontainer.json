@@ -1,0 +1,25 @@
+{
+  "name": "Frontend Dev",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "s003-c9502_lele-da-front",
+
+  "waitFor": "onCreateCommand",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.debugpy"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "python.defaultInterpreterPath": "/usr/local/bin/python"  // <=== Added this
+      }
+    }
+  },
+
+  "postCreateCommand": "pip install --upgrade debugpy",
+  "remoteUser": "root"
+}

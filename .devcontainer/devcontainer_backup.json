@@ -1,0 +1,21 @@
+{
+  "name": "DA-Frontend-Backend Dev",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "extensions": [
+    "ms-python.python",
+    "ms-toolsai.jupyter",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "cweijan.dbclient-jdbc",
+    "jebbs.plantuml"
+  ],
+  "settings": {
+    // Ensures PlantUML works reliably even without Java inside container
+    "plantuml.render": "local",
+  },
+  "postCreateCommand": "pip install -r 002.04.02.04.01_DA-CodeFrontend/requirements.txt && pip install -r 002.04.02.04.02_DA-CodeOrchestrator/requirements.txt"
+}
