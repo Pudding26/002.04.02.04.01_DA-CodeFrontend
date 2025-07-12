@@ -1,0 +1,14 @@
+# Dockerfile.panel
+FROM python:3.11-slim
+
+WORKDIR /workspace
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+EXPOSE 5006
+
+CMD ["tail", "-f", "/dev/null"]
+#CMD ["panel", "serve", "my_panel_app.py", "--address=0.0.0.0", "--port=5006", "--autoreload"] #Production

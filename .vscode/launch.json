@@ -1,4 +1,3 @@
-// .vscode/launch.json
 {
   "version": "0.2.0",
   "configurations": [
@@ -16,7 +15,22 @@
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.env",
       "console": "integratedTerminal"
+    },
+    {
+      "name": "Launch Panel (in container)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "/usr/local/bin/panel",
+      "args": [
+        "serve",
+        "app/panel_app/panel_main.py",
+        "--address=0.0.0.0",
+        "--port=5006",
+        "--autoreload"
+      ],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
     }
-    
   ]
 }

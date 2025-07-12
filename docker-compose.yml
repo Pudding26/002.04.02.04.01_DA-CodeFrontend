@@ -42,3 +42,19 @@ services:
     #network_mode: "service:s003-c9599_lele-da-ts"
     networks:
       - s003-n95_lele-da
+
+
+  s003-c9504_lele-da-panel:
+    container_name: s003-c9504_lele-da-panel
+    restart: unless-stopped
+    volumes:
+      - .:/workspace
+    build:
+      context: .
+      dockerfile: Dockerfile.panel
+    env_file: .env  # ensures it picks up BACKEND_HOST etc
+    ports:
+      - "5006:5006"
+    networks:
+      - s003-n95_lele-da
+    command: panel serve app/panel_app/panel_main.py --address=0.0.0.0 --port=5006 --autoreload
