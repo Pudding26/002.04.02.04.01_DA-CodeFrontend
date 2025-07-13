@@ -162,16 +162,6 @@ class PlotVisu:
             col_facet, row_facet, hue_col, fast_mode, max_col_bins, agg_col, weight_col
         )
 
-        module_name = f"utils.pages.visu.plots.plot_{plot_type.lower()}"
-        plot_func_name = f"plot_{subplot_type.lower()}"
-
-        try:
-            plot_module = importlib.import_module(module_name)
-            plot_func = getattr(plot_module, plot_func_name)
-        except (ImportError, AttributeError) as e:
-            st.error(f"Plot function not found: {e}")
-            return
-
         kwargs = dict(
             col_facet=col_facet,
             row_facet=row_facet,
@@ -185,7 +175,39 @@ class PlotVisu:
             weight_col=weight_col
         )
 
-        result = plot_func(df_prep, **kwargs)
+        init_kwargs = {
+            'df': df_prep,
+            'col_facet': kwargs['col_facet'],
+            'row_facet': kwargs['row_facet'],
+            'hue_col': kwargs['hue_col'],
+            'category_order': kwargs['category_order']
+        }
+
+        # Plot kwargs vary by type:
+        if subplot_type == "GroupedBarplot":
+            from utils.pages.visu.plots.plot_barplot import GroupedBarplot
+            plot_instance = GroupedBarplot(**init_kwargs)
+            plot_kwargs = {
+                'agg_func': kwargs['agg_func'],
+                'agg_col': kwargs['agg_col'],
+                'weighting_mode': kwargs['weighting_mode'],
+                'weight_col': kwargs['weight_col'],
+                'max_bins': kwargs['max_bins'],
+                'multi_plot': kwargs['multi_plot']
+            }
+            result = plot_instance.plot(**plot_kwargs)
+
+        elif subplot_type == "Histogram":
+            from utils.pages.visu.plots.plot_barplot import HistogramBarplot
+            plot_instance = HistogramBarplot(**init_kwargs)
+            plot_kwargs = {
+                'max_bins': kwargs['max_bins'],
+                'multi_plot': kwargs['multi_plot']
+            }
+            result = plot_instance.plot(**plot_kwargs)
+
+
+
 
         if isinstance(result, tuple):
             figs, num_cols = result
