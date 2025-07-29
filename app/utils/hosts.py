@@ -1,0 +1,32 @@
+import os
+from dotenv import load_dotenv
+
+
+load_dotenv()
+BACKEND_ORCH_PRIVATE_PORT = int(os.getenv("BACKEND_ORCH_PRIVATE_PORT", 8000))
+BACKEND_ORCH_PUBLIC_PORT = int(os.getenv("BACKEND_ORCH_PUBLIC_PORT", 59501))
+BACKEND_ORCH_HOSTNAME_PUBLIC = os.getenv("BACKEND_HOSTNAME_PUBLIC", "api.leandrohome.de")
+BACKEND_ORCH_HOSTNAME_PRIVATE = os.getenv("BACKEND_HOSTNAME_PRIVATE", "s003-c9501_lele-da-app")
+BACKEND_ORCH_HOSTNAME_PRIVATE = os.getenv("BACKEND_ORCH_BASE_URL", BACKEND_ORCH_HOSTNAME_PUBLIC)
+
+
+if os.getenv("DEBUG_MODE", "False") == "True":
+    BACKEND_ORCH_PORT = ""
+    BACKEND_ORCH_HOSTNAME = BACKEND_ORCH_HOSTNAME_PUBLIC
+
+else:
+    BACKEND_ORCH_PORT = ":" + BACKEND_ORCH_PRIVATE_PORT
+    BACKEND_ORCH_HOSTNAME = BACKEND_ORCH_HOSTNAME_PRIVATE
+    # Default port for the backend orchestrator
+
+
+
+
+ORCHESTRATOR_URL = "http://" + BACKEND_ORCH_HOSTNAME + str(BACKEND_ORCH_PORT)
+
+BASE_URL_VISU = f"{ORCHESTRATOR_URL}/visu"
+BASE_URL_TASKS = f"{ORCHESTRATOR_URL}/tasks"
+
+print(f"🔔 Using ORCHESTRATOR_URL: {ORCHESTRATOR_URL}", flush=True)
+print(f"🔔 Using BASE_URL_VISU: {BASE_URL_VISU}", flush=True)
+print(f"🔔 Using BASE_URL_TASKS: {BASE_URL_TASKS}", flush=True)

@@ -4,26 +4,17 @@ import httpx
 import time
 from dotenv import load_dotenv
 
-# --- Setup ---
-load_dotenv()
-BACKEND_HOST = os.getenv("BACKEND_ORCH_BASE_URL")
-BACKEND_HOST = "s003-c9501_lele-da-app"
-BACKEND_PORT = os.getenv("BACKEND_ORCH_BASE_PORT", "8000")
-BACKEND_PORT = "59501"
-DEBUG_MODE = os.getenv("DEBUG_MODE")
-
-
-BASE_URL = f"http://{BACKEND_HOST}:{BACKEND_PORT}"
+from utils.hosts import ORCHESTRATOR_URL, BASE_URL_TASKS
 
 st.title("Available Tasks")
 
 # --- Utility Functions ---
 def get_tasks():
-    return httpx.get(f"{BASE_URL}/tasks/").json().get("possible_tasks", [])
+    return httpx.get(f"{BASE_URL_TASKS}", follow_redirects=True).json().get("possible_tasks", [])
 
 def reload_instructions():
     try:
-        resp = httpx.post(f"{BASE_URL}/tasks/reload", timeout=5)
+        resp = httpx.post(f"{ORCHESTRATOR_URL}/tasks/reload", timeout=5)
         st.session_state["reload_success"] = resp.json().get("message", "Reloaded")
         st.session_state.pop("task_data", None)
         st.rerun()
@@ -31,13 +22,13 @@ def reload_instructions():
         st.session_state["reload_success"] = f"❌ {e}"
 
 def run_task(task_name):
-    return httpx.post(f"{BASE_URL}/tasks/start", json={"task_name": task_name})
+    return httpx.post(f"{ORCHESTRATOR_URL}/tasks/start", json={"task_name": task_name})
 
 def stop_task(task_name):
-    return httpx.post(f"{BASE_URL}/tasks/stop", json={"task_name": task_name})
+    return httpx.post(f"{ORCHESTRATOR_URL}/tasks/stop", json={"task_name": task_name})
 
 def control_task(task_name, action):
-    return httpx.post(f"{BASE_URL}/tasks/control", json={"task_name": task_name, "action": action})
+    return httpx.post(f"{ORCHESTRATOR_URL}/tasks/control", json={"task_name": task_name, "action": action})
 
 # --- Load Tasks Once ---
 if "task_data" not in st.session_state:
@@ -82,16 +73,16 @@ if st.button("🛑 Stop Task"):
 
 
 # --- Fetch all task statuses once to extract task names ---
-initial_response = httpx.get(f"{BASE_URL}/tasks/status")
+initial_response = httpx.get(f"{ORCHESTRATOR_URL}/tasks/status")
 initial_tasks = initial_response.json()
 task_names = [task["task_name"] for task in initial_tasks]
 
 # --- Fragment for each task ---
 for task_name in task_names:
-    @st.fragment(run_every="1s")  # reasonable polling interval
+    @st.fragment(run_every="5s")  # reasonable polling interval
     def render_task(taskname=task_name):  # default arg avoids closure bugs
         # Fetch only the current task's status
-        response = httpx.get(f"{BASE_URL}/tasks/status")
+        response = httpx.get(f"{ORCHESTRATOR_URL}/tasks/status")
         tasks = response.json()
         task = next((t for t in tasks if t["task_name"] == taskname), None)
 

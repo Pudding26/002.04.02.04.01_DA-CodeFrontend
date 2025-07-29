@@ -5,10 +5,10 @@ import requests
 from urllib.parse import quote, unquote
 import yaml
 
-BACKEND_HOST = os.getenv("BACKEND_ORCH_BASE_URL", "s003-c9501_lele-da-app")
-BACKEND_PORT = os.getenv("BACKEND_ORCH_BASE_PORT", "59501")
-BASE_URL = f"http://{BACKEND_HOST}:{BACKEND_PORT}/visu"
-PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:59502")
+from utils.hosts import BASE_URL_VISU
+
+
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 from app.utils.pages.visu.TableVisu import TableVisu
@@ -44,14 +44,14 @@ VISU_REGISTRY = {
     "Table": TableVisu,
     "Profile Report": ProfileReportVisu,
     "Plots": PlotVisu,
-    "Panel": "Embedded Panel",
+#    "Panel": "Embedded Panel",
 }
 
 st.set_page_config(layout="wide", page_title="Data Viewer", page_icon="📊")
 
 @st.cache_data(ttl=300)
 def get_all_table_caches():
-    res = requests.get(f"{BASE_URL}/cache/all_table_caches")
+    res = requests.get(f"{BASE_URL_VISU}/cache/all_table_caches")
     res.raise_for_status()
     return res.json()
 
@@ -62,7 +62,7 @@ def fetch_data(payload):
         return pd.DataFrame()
 
 
-    res = requests.post(f"{BASE_URL}/data", json=payload)
+    res = requests.post(f"{BASE_URL_VISU}/data", json=payload)
     res.raise_for_status()
     return pd.DataFrame(res.json()["data"])
 
@@ -98,27 +98,32 @@ if limit_mode in ["top", "bottom"] and numeric_cols:
     sort_col = st.sidebar.selectbox("Sort Column", numeric_cols)
     sort_order = "asc" if limit_mode == "bottom" else "desc"
 
+
+st.sidebar.markdown("### 🔧 Filters")
+use_filters = st.sidebar.checkbox("Enable Filters", value=True)
+
 filters = {}
-with st.sidebar.expander("🔧 Filters", expanded=False):
-    for col in columns:
-        col_name = col["name"]
-        col_type = col.get("type")
-        if col_type == "numeric":
-            min_val, max_val = col.get("min"), col.get("max")
-            if isinstance(min_val, (int, float)) and isinstance(max_val, (int, float)) and min_val != max_val:
-                sel_min, sel_max = st.slider(col_name, min_value=min_val, max_value=max_val, value=(min_val, max_val))
-                filters[col_name] = {"type": "numeric", "min": sel_min, "max": sel_max}
-        elif col_type == "categorical":
-            uniq_vals = col.get("unique_values", [])
-            uniq_cnt = col.get("unique_count", 0)
-            if uniq_cnt <= 10 and uniq_vals:
-                chosen = st.multiselect(col_name, uniq_vals)
-                if chosen:
-                    filters[col_name] = {"type": "categorical", "values": chosen}
-            else:
-                txt = st.text_input(f"Contains {col_name}")
-                if txt:
-                    filters[col_name] = {"type": "categorical", "values": [txt]}
+if use_filters:
+    with st.sidebar.expander("🔧 Filters", expanded=False):
+        for col in columns:
+            col_name = col["name"]
+            col_type = col.get("type")
+            if col_type == "numeric":
+                min_val, max_val = col.get("min"), col.get("max")
+                if isinstance(min_val, (int, float)) and isinstance(max_val, (int, float)) and min_val != max_val:
+                    sel_min, sel_max = st.slider(col_name, min_value=min_val, max_value=max_val, value=(min_val, max_val))
+                    filters[col_name] = {"type": "numeric", "min": sel_min, "max": sel_max}
+            elif col_type == "categorical":
+                uniq_vals = col.get("unique_values", [])
+                uniq_cnt = col.get("unique_count", 0)
+                if uniq_cnt <= 10 and uniq_vals:
+                    chosen = st.multiselect(col_name, uniq_vals)
+                    if chosen:
+                        filters[col_name] = {"type": "categorical", "values": chosen}
+                else:
+                    txt = st.text_input(f"Contains {col_name}")
+                    if txt:
+                        filters[col_name] = {"type": "categorical", "values": [txt]}
 
 if fetch_btn:
     payload = {

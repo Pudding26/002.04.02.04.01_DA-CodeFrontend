@@ -4,13 +4,7 @@ from dotenv import load_dotenv
 import os
 
 
-load_dotenv()
-
-BACKEND_ORCH_BASE_PORT = os.getenv("BACKEND_ORCH_BASE_PORT")
-BACKEND_ORCH_BASE_PORT = "8000"
-BACKEND_ORCH_BASE_URL = os.getenv("BACKEND_ORCH_BASE_URL")
-BACKEND_ORCH_BASE_URL = "s003-c9501_lele-da-app"
-ORCHESTRATOR_URL = "http://" + BACKEND_ORCH_BASE_URL + ":" + BACKEND_ORCH_BASE_PORT
+from app.utils.hosts import ORCHESTRATOR_URL
 
 
 st.title("Mockup Frontend")

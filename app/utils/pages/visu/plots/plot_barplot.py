@@ -23,11 +23,15 @@ class BarplotBase:
     def _get_order(self, key):
         return self.category_order.get(key) if key and self.category_order else None
 
-    def _apply_common_style(self, ax, y_label, max_y=None):
-        ax.set_ylabel(y_label)
-        ax.tick_params(axis='x', rotation=45)
-        if max_y:
+
+    def _apply_common_style(self, ax, ylabel=None, max_y=None):
+        if max_y is not None:
             ax.set_ylim(0, max_y)
+        if ylabel:
+            ax.set_ylabel(ylabel)
+        ax.set_xlabel(ax.get_xlabel(), fontsize='small')
+        ax.set_ylabel(ax.get_ylabel(), fontsize='small')
+        ax.tick_params(axis='both', which='major', labelsize='small')
 
     def _set_title_and_subtitle(self, ax, title, subtitle=None):
         ax.text(0.5, 1.08, title,

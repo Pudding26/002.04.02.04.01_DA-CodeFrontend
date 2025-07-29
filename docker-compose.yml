@@ -32,7 +32,7 @@ services:
 
     env_file: .env
     ports:
-      - "${FRONTEND_PORT}:8501"
+      - "${FRONTEND_PORT_PUBLIC}:${FRONTEND_PORT_PRIVATE}"
       - "59555:5678"
 
     #working_dir: /workspace/002.04.02.04.01_DA-CodeFrontend
