@@ -14,6 +14,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"
 from app.utils.pages.visu.TableVisu import TableVisu
 from app.utils.pages.visu.ProfileReportVisu import ProfileReportVisu
 from app.utils.pages.visu.PlotVisu import PlotVisu
+from app.utils.pages.visu.RegressionVisu import RegressionVisu
 
 
 def embedded_panel():
@@ -44,6 +45,7 @@ VISU_REGISTRY = {
     "Table": TableVisu,
     "Profile Report": ProfileReportVisu,
     "Plots": PlotVisu,
+    "Regression": RegressionVisu
 #    "Panel": "Embedded Panel",
 }
 
