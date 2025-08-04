@@ -1,0 +1,39 @@
+data_specific_config:
+  production:
+    modellingResults:
+      category_order:
+        scope: [family, genus, species, sourceID, specimenID, sampleID, stackID, shotID]
+        label: [family, genus, species, sourceID, specimenID, sampleID, stackID, shotID]
+      Histogram:
+        allowed_row: [knn_acc, rf_acc]
+        allowed_hue: [scope, label]
+        allowed_col: [scope, label]
+        customization:
+          plot_mode:
+            type: segmented_control
+            options: [bars, both, kde]
+            default: bars
+            doc: "Choose between histogram (bars), density line (kde), or both"
+          value_range:
+            type: range_slider
+            min: 0
+            max: 1
+            default: [0, 1]
+            doc: "X-axis range for histogram"
+
+      GroupedBarplot:
+        allowed_col: [scope, label]
+        allowed_row: [scope, label, frac]
+        allowed_hue: [scope, label]
+        allowed_agg: [knn_acc, rf_acc]
+        allowed_weight: [initial_row_count, initial_col_count]
+      LineSumPlot:
+        allowed_col: [scope, label]
+        allowed_row: [scope, label, frac]
+        allowed_hue: [scope, label]
+        allowed_weight: [initial_row_count, initial_col_count]
+      LineDensityPlot:
+        allowed_col: [scope, label]
+        allowed_row: [scope, label, frac]
+        allowed_hue: [scope, label]
+        allowed_weight: [initial_row_count, initial_col_count]

@@ -1,0 +1,142 @@
+plots:
+  Barplot:
+    Histogram:
+      doc: |
+        A simple histogram plot.
+        - `col_facet` → defines subplot columns
+        - `row_facet` → numeric variables to histogram (multi-select allowed)
+        - `hue_col` → optional grouping/overlay
+        - `max_bins` → number of bins
+        - `multi_plot` → render in one multiplot grid (true) or multiple figs
+      controls:
+        col_facet:
+          type: select
+          allowed: col
+          required: false
+          doc: Column to split into subplot columns
+        row_facet:
+          type: multiselect
+          allowed: row
+          required: true
+          doc: Numeric variable(s) to plot as histogram(s)
+        hue_col:
+          type: select
+          allowed: hue
+          required: false
+          doc: Column to overlay histograms with colors
+        max_bins:
+          type: number_input
+          min: 5
+          max: 100
+          default: 20
+          doc: Number of bins in each histogram
+        multi_plot:
+          type: checkbox
+          default: true
+          doc: Show all histograms in a single grid figure
+
+    GroupedBarplot:
+      doc: |
+        A grouped barplot with optional weighting.
+        - `row_facet` → categories or numeric vars (will be binned)
+        - `col_facet` → subplot columns
+        - `hue_col` → grouping inside bars
+        - `agg_func` → aggregation function
+        - `weight_col` + `weighting_mode` → control weighted counts
+      controls:
+        col_facet:
+          type: select
+          allowed: col
+          required: false
+          doc: Column to split into subplot columns
+        row_facet:
+          type: multiselect
+          allowed: row
+          required: true
+          doc: Categories or numeric vars to group bars by
+        hue_col:
+          type: select
+          allowed: hue
+          required: false
+          doc: Column to color groups within bars
+        agg_func:
+          type: select
+          options: [count, mean, std, sum]
+          default: count
+          doc: Aggregation function for values
+        weight_col:
+          type: select
+          allowed: weight
+          required: false
+          doc: Column to use for weighted counts
+        weighting_mode:
+          type: select
+          options: [none, combined, additional, weighted only]
+          default: none
+          doc: How to apply weighting
+        multi_plot:
+          type: checkbox
+          default: true
+          doc: Show all barplots in a single grid figure
+
+
+
+Lineplot:
+  LineSumPlot:
+    controls:
+      col_facet:
+        type: select
+        allowed: col
+        required: false
+      row_facet:
+        type: select
+        allowed: row
+        required: true
+      hue_col:
+        type: select
+        allowed: hue
+        required: false
+      weighting_mode:
+        type: select
+        allowed: weight
+        required: false
+  LineDensityPlot:
+    controls:
+      col_facet:
+        type: select
+        allowed: col
+        required: false
+      row_facet:
+        type: select
+        allowed: row
+        required: true
+      hue_col:
+        type: select
+        allowed: hue
+        required: false
+      weighting_mode:
+        type: select
+        allowed: weight
+        required: false
+  SimpleLineplot:
+    controls:
+      col_facet:
+        type: select
+        allowed: col
+        required: false
+      row_facet:
+        type: select
+        allowed: row
+        required: false
+      hue_col:
+        type: select
+        allowed: hue
+        required: false
+      x_col:
+        type: select
+        allowed: numeric
+        required: true
+      y_col:
+        type: select
+        allowed: numeric
+        required: true

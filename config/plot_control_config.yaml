@@ -1,0 +1,20 @@
+col_facet:
+  type: select
+  allowed: col
+  required: false
+row_facet:
+  type: multiselect
+  allowed: row
+  required: true
+hue_col:
+  type: select
+  allowed: hue
+  required: false
+max_col_bins:
+  type: number_input
+  min: 2
+  max: 20
+  default: 5
+fast_mode:
+  type: checkbox
+  default: false

@@ -1,330 +1,260 @@
+"""
+PlotVisu
+
+Configurable plotting interface with support for barplots, lineplots, histograms, etc.
+
+Integration of three YAML configs:
+- plot_config.yaml: defines plot types & controls
+- plot_control_config.yaml: reusable control templates
+- plot_data_specific_config.yaml: dataset-specific restrictions
+"""
+
 import streamlit as st
-import importlib
 import pandas as pd
 import logging
+import yaml
+import os
+from app.utils.pages.visu.BaseVisu import BaseVisu
+from app.utils.pages.visu.utils.render_control import render_control
 
+# Logging setup
 logger = logging.getLogger(__name__)
 if not logger.hasHandlers():
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-    )
+    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
-PLOTS = {
-    "Barplot": {
-        "GroupedBarplot": {
-            "controls": {
-                "col_facet": True,
-                "row_facet": True,
-                "hue": {"enabled": True},
-                "weighting": {"enabled": True},
-                "agg_func": ["count", "mean", "std", "sum"]
-            }
-        },
-        "Histogram": {
-            "controls": {
-                "col_facet": True,
-                "row_facet": True,
-                "hue": {"enabled": False}
-            }
-        },
-    },
-    "Lineplot": {
-        "LineSumPlot": {
-            "controls": {
-                "col_facet": True,
-                "row_facet": True,
-                "hue": {"enabled": True},
-                "weighting": {"enabled": True}
-            }
-        },
-        "LineDensityPlot": {
-            "controls": {
-                "col_facet": True,
-                "row_facet": True,  # single-select in UI
-                "hue": {"enabled": True},
-                "weighting": {"enabled": True}
-            
-            }
-        },
-        "SimpleLineplot": {
-            "controls": {
-                "col_facet": True,
-                "row_facet": True,
-                "hue": {"enabled": True},
-                "x_axis": {"enabled": True},
-            }
-        },
+# -------------------------------
+# Config loading
+# -------------------------------
 
-    }
-}
-DATA_SPECIFIC_CONFIG = {
-    "production": {
-        "modellingResults": {
-            "category_order": {
-                "scope": ["family", "genus", "species", "sourceID", "specimenID", "sampleID", "stackID", "shotID"],
-                "label": ["family", "genus", "species", "sourceID", "specimenID", "sampleID", "stackID", "shotID"]
-            },
-            "Histogram": {
-                "allowed_row": ["knn_acc", "rf_acc"],
-                "allowed_hue": ["species"],
-                "allowed_col": ["scope"]
-            },
-            "GroupedBarplot": {
-                "allowed_col": ["scope", "label"],
-                "allowed_row": ["scope", "label", "frac"],
-                "allowed_hue": ["scope", "label"],
-                "allowed_agg": ["knn_acc", "rf_acc"],
-                "allowed_weight": ["initial_row_count", "initial_col_count"]
-            },
-            "LineSumPlot": {
-                "allowed_col": ["scope", "label"],
-                "allowed_row": ["scope", "label", "frac"],
-                "allowed_hue": ["scope", "label"],
-                "allowed_weight": ["initial_row_count", "initial_col_count"]
-            },
-            "LineDensityPlot": {
-                "allowed_col": ["scope", "label"],
-                "allowed_row": ["scope", "label", "frac"],  # These control row facet values
-                "allowed_hue": ["scope", "label"],
-                "allowed_weight": ["initial_row_count", "initial_col_count"]
-            }
-        }
-    }
-}
+def load_configs():
+    with open("config/plot_config.yaml", "r") as f:
+        plot_config = yaml.safe_load(f)
+    with open("config/plot_control_config.yaml", "r") as f:
+        control_config = yaml.safe_load(f)
+    with open("config/plot_data_specific_config.yaml", "r") as f:
+        data_specific_config = yaml.safe_load(f).get("data_specific_config", {})
+    return plot_config, control_config, data_specific_config
 
-class PlotVisu:
-    def __init__(self, df, shared_state=None):
-        self.df = df
-        self.shared_state = shared_state or {}
+plot_config, CONTROL_CONFIG, DATA_SPECIFIC_CONFIG = load_configs()
+PLOTS = plot_config.get("plots", {})
+
+
+# -------------------------------
+# Control resolver
+# -------------------------------
+def resolve_controls(control_specs):
+    """
+    Merge plot-specific control specs with global control templates.
+
+    Rules:
+    - If control spec is a dict, merge with template from CONTROL_CONFIG (if exists).
+    - If control spec is a string referencing a template, resolve it.
+    - Otherwise, return as-is.
+    """
+    resolved = {}
+    for name, spec in control_specs.items():
+        if isinstance(spec, str) and spec in CONTROL_CONFIG:
+            resolved[name] = CONTROL_CONFIG[spec]
+        elif isinstance(spec, dict):
+            base = CONTROL_CONFIG.get(name, {})
+            merged = {**base, **spec}  # plot-specific overrides global template
+            resolved[name] = merged
+        elif name in CONTROL_CONFIG:
+            resolved[name] = CONTROL_CONFIG[name]
+        else:
+            resolved[name] = spec
+    return resolved
+
+
+# -------------------------------
+# Main Class
+# -------------------------------
+class PlotVisu(BaseVisu):
+    def __init__(self, df, shared_state=None, initial_config=None):
+        super().__init__(df, shared_state, initial_config)
+        self.config = initial_config or {}
+
+    def get_state(self):
+        """Return current plot configuration for persistence in URL."""
+        return self.config
 
     def render(self):
-        st.title("📈 Plot Configuration")
+        st.subheader("📈 Plot Configuration")
+        plot_config, CONTROL_CONFIG, DATA_SPECIFIC_CONFIG = load_configs()
+        PLOTS = plot_config.get("plots", {})
+        # --- Row 1: Plot type & Subplot type ---
+        c1, c2 = st.columns(2)
+        with c1:
+            plot_type = st.selectbox(
+                "Plot Type",
+                list(PLOTS.keys()),
+                index=list(PLOTS.keys()).index(self.config.get("plot_type", list(PLOTS.keys())[0]))
+            )
+        with c2:
+            subplot_options = list(PLOTS[plot_type].keys())
+            subplot_type = st.selectbox(
+                "Subplot Type",
+                subplot_options,
+                index=subplot_options.index(self.config.get("subplot_type", subplot_options[0]))
+            )
 
-        plot_type_selection = st.selectbox("Plot Type", list(PLOTS.keys()))
-        plot_type = next((k for k in PLOTS.keys() if k.lower() == plot_type_selection.lower()), plot_type_selection)
+        self.config["plot_type"] = plot_type
+        self.config["subplot_type"] = subplot_type
 
-        subplot_type_selection = st.selectbox("Subplot Type", list(PLOTS[plot_type].keys()))
-        subplot_type = next((k for k in PLOTS[plot_type].keys() if k.lower() == subplot_type_selection.lower()), subplot_type_selection)
-
+        # --- Control specs from YAML (resolved with templates) ---
         controls = PLOTS[plot_type][subplot_type]["controls"]
 
+        # --- Dataset-specific config ---
         db_key = self.shared_state.get("db")
         table_name = self.shared_state.get("table")
         plot_key = subplot_type.lower()
-
         dataset_cfg = DATA_SPECIFIC_CONFIG.get(db_key, {}).get(table_name, {})
         category_order = dataset_cfg.get("category_order", {})
+        data_cfg = next((v for k, v in dataset_cfg.items() if k.lower() == plot_key), {})
 
-        data_cfg = next(
-            (v for k, v in dataset_cfg.items() if k.lower() == plot_key),
-            {}
-        )
-
+        # --- Allowed columns ---
         all_cols = list(self.df.columns)
-        picked_cols = set()
-
-        def case_insensitive_filter(cols, allowed):
-            return [c for c in cols if allowed is None or c.lower() in [a.lower() for a in allowed]]
-        
-        logger.debug(f"db_key={db_key}, table_name={table_name}")
-        logger.debug(f"dataset_cfg={dataset_cfg}")
-        logger.debug(f"plot_key={plot_key}, data_cfg={data_cfg}")
-
-
-        allowed_row_cols = case_insensitive_filter(all_cols, data_cfg.get("allowed_row"))
-        allowed_hue_cols = case_insensitive_filter(all_cols, data_cfg.get("allowed_hue"))
-        allowed_col_cols = case_insensitive_filter(all_cols, data_cfg.get("allowed_col"))
-        allowed_weight_cols = case_insensitive_filter(all_cols, data_cfg.get("allowed_weight"))
         numeric_cols = list(self.df.select_dtypes(include="number").columns)
 
-        col_facet = None
-        row_facet = []
-        hue_col = None
-        agg_func = "count"
-        agg_col = None
-        weight_col = None
-        weighting_mode = "none"
-        max_bins = 10
-        max_col_bins = 5
+        def filter_allowed(cols, allowed):
+            return [c for c in cols if allowed is None or c.lower() in [a.lower() for a in allowed]]
 
-        if controls.get("col_facet"):
-            available_cols = [c for c in allowed_col_cols if c not in picked_cols]
-            options = ["None"] + available_cols
-            col1, col2 = st.columns([0.7, 0.3])
-            with col1:
-                col_facet_sel = st.selectbox("Col Facet", options)
-                col_facet = None if col_facet_sel == "None" else col_facet_sel
-                if col_facet:
-                    picked_cols.add(col_facet)
-            with col2:
-                max_col_bins = st.number_input("Max Col Bins", min_value=2, max_value=20, value=5)
+        allowed_cols = {
+            "row": filter_allowed(all_cols, data_cfg.get("allowed_row")),
+            "col": filter_allowed(all_cols, data_cfg.get("allowed_col")),
+            "hue": filter_allowed(all_cols, data_cfg.get("allowed_hue")),
+            "weight": filter_allowed(all_cols, data_cfg.get("allowed_weight")),
+            "numeric": numeric_cols,
+        }
 
-
-        # ROW FACET handling
-        if subplot_type in ["LineSumPlot", "LineDensityPlot"]:
-            available_cols = [c for c in allowed_row_cols if c not in picked_cols]
-            row_facet_sel = st.selectbox("Row Facet", available_cols)
-            if row_facet_sel:
-                row_facet = [row_facet_sel]  # Ensure it's a list for consistency later
-                picked_cols.update(row_facet)
-        else:
-            if controls.get("row_facet"):
-                available_cols = [c for c in allowed_row_cols if c not in picked_cols]
-                options = ["None"] + available_cols
-                row_facet_sel = st.multiselect("Row Facet(s)", options)
-                row_facet = [r for r in row_facet_sel if r != "None"]
-                picked_cols.update(row_facet)
-
-        if controls.get("hue", {}).get("enabled"):
-            available_cols = [c for c in allowed_hue_cols if c not in picked_cols]
-            hue_col = st.selectbox("Hue Column", available_cols)
-            if hue_col:
-                picked_cols.add(hue_col)
-
-
-        x_col, y_col = None, None
-        # X axis selector
-        if controls.get("x_axis", {}).get("enabled"):
-            available_x = [c for c in numeric_cols if c not in picked_cols]
-            x_col = st.selectbox("X Axis", available_x, key=f"x_axis_{subplot_type}")
-            if x_col:
-                picked_cols.add(x_col)
-
-        # Y axis selector
-        if controls.get("y_axis", {}).get("enabled"):
-            available_y = [c for c in numeric_cols if c not in picked_cols]
-            y_col = st.selectbox("Y Axis", available_y, key=f"y_axis_{subplot_type}")
-            if y_col:
-                picked_cols.add(y_col)
-
-
-
-
-
-        # AGG COL for LineSumPlot and LineDensityPlot
-        if subplot_type in ["LineSumPlot", "LineDensityPlot"]:
-            available_cols = [c for c in numeric_cols if c not in picked_cols]
-            agg_col = st.multiselect("Metric columns (agg_col)", available_cols)
-            picked_cols.update(agg_col)
-
-        if controls.get("weighting", {}).get("enabled"):
-            weighting_mode = st.selectbox("Weighting mode", ["none", "combined", "additional", "weighted only"])
-            if weighting_mode != "none":
-                available_cols = [c for c in allowed_weight_cols if c not in picked_cols]
-                weight_col = st.selectbox("Weight Column", available_cols)
-                if weight_col:
-                    picked_cols.add(weight_col)
-
-        fast_mode = st.checkbox("⚡ Fast mode (sample 100 rows)")
-        multi_plot = st.checkbox("📄 Multi-plot (single grid figure)", value=True)
-
-
-        if st.button("Render Plot"):
-            self.handle_plot(
-                plot_type, subplot_type,
-                col_facet, row_facet, hue_col,
-                max_bins, fast_mode, multi_plot,
-                max_col_bins, agg_func, agg_col,
-                x_col, y_col,
-                category_order, weighting_mode, weight_col
+        # --- Render each control using central function ---
+        for name, spec in controls.items():
+            help_text = spec.get("doc")   # 👈 read inline doc from YAML
+            val = render_control(
+                name, spec, self.df, allowed_cols,
+                self.config.get(name), key_prefix=subplot_type,
+                help=help_text   # 👈 pass it along
             )
 
-    def handle_plot(self, plot_type, subplot_type,
-                    col_facet, row_facet, hue_col,
-                    max_bins, fast_mode, multi_plot,
-                    max_col_bins, agg_func, agg_col,
-                    x_col, y_col,
-                    category_order, weighting_mode, weight_col):
-        
-        
-        df_prep = self.prepare_data(
-            col_facet, row_facet, hue_col, fast_mode, max_col_bins,
-            agg_col, weight_col, x_col, y_col
-        )
+            # Normalize "None" → None
+            if spec.get("type") in ["select", "multiselect"]:
+                if val == "None":
+                    val = None
+                elif isinstance(val, list) and "None" in val:
+                    val = [v for v in val if v != "None"]
 
-        kwargs = dict(
-            col_facet=col_facet,
-            row_facet=row_facet,
-            hue_col=hue_col,
-            max_bins=max_bins,
-            multi_plot=multi_plot,
-            agg_func=agg_func,
-            agg_col=agg_col,
-            category_order=category_order,
-            weighting_mode=weighting_mode,
-            weight_col=weight_col
+            self.config[name] = val
+
+        custom_cfg = data_cfg.get("customization", {})
+        if custom_cfg:
+            with st.expander("⚙️ Customization"):
+                controls_per_row = 5
+                items = list(custom_cfg.items())
+
+                for start in range(0, len(items), controls_per_row):
+                    row_items = items[start:start + controls_per_row]
+                    cols = st.columns(len(row_items))
+                    for (name, spec), col in zip(row_items, cols):
+                        with col:
+                            help_text = spec.get("doc")
+                            val = render_control(
+                                name, spec, self.df, allowed_cols,
+                                self.config.get(name),
+                                key_prefix=f"{subplot_type}_custom",
+                                help=help_text
+                            )
+                            self.config[name] = val
+
+
+
+        # --- Render button ---
+        if st.button("Render Plot"):
+            self.handle_plot(category_order)
+
+    # -------------------------------
+    # Plotting
+    # -------------------------------
+    def handle_plot(self, category_order):
+        cfg = self.config
+        df_prep = self.prepare_data(
+            cfg.get("col_facet"),
+            cfg.get("row_facet"),
+            cfg.get("hue_col"),
+            cfg.get("fast_mode", False),
+            cfg.get("max_col_bins", 5),
+            cfg.get("agg_col"),
+            cfg.get("weight_col"),
+            cfg.get("x_col"),
+            cfg.get("y_col"),
         )
+        st.write("🔧 Debug config", cfg)
 
         init_kwargs = {
             'df': df_prep,
-            'col_facet': kwargs['col_facet'],
-            'row_facet': kwargs['row_facet'],
-            'hue_col': kwargs['hue_col'],
-            'category_order': kwargs['category_order']
+            'col_facet': cfg.get("col_facet"),
+            'row_facet': cfg.get("row_facet"),
+            'hue_col': cfg.get("hue_col"),
+            'category_order': category_order
         }
 
-        # Plot kwargs vary by type:
-        if subplot_type == "GroupedBarplot":
-            from utils.pages.visu.plots.plot_barplot import GroupedBarplot
+        # Dispatch plotting by subplot type
+        if cfg["subplot_type"] == "GroupedBarplot":
+            from app.utils.pages.visu.plots.plot_barplot import GroupedBarplot
             plot_instance = GroupedBarplot(**init_kwargs)
-            plot_kwargs = {
-                'agg_func': kwargs['agg_func'],
-                'agg_col': kwargs['agg_col'],
-                'weighting_mode': kwargs['weighting_mode'],
-                'weight_col': kwargs['weight_col'],
-                'max_bins': kwargs['max_bins'],
-                'multi_plot': kwargs['multi_plot']
-            }
-            result = plot_instance.plot(**plot_kwargs)
+            figs = plot_instance.plot(
+                agg_func=cfg.get("agg_func", "count"),
+                agg_col=cfg.get("agg_col"),
+                weighting_mode=cfg.get("weighting_mode"),
+                weight_col=cfg.get("weight_col"),
+                max_bins=cfg.get("max_bins", 10),
+                multi_plot=cfg.get("multi_plot", True)
+            )
 
-        elif subplot_type == "Histogram":
-            from utils.pages.visu.plots.plot_barplot import HistogramBarplot
+        elif cfg["subplot_type"] == "Histogram":
+            from utils.pages.visu.plots.barplot.HistogramBarplot import HistogramBarplot
             plot_instance = HistogramBarplot(**init_kwargs)
-            plot_kwargs = {
-                'max_bins': kwargs['max_bins'],
-                'multi_plot': kwargs['multi_plot']
-            }
-            result = plot_instance.plot(**plot_kwargs)
+            figs = plot_instance.plot(
+                max_bins=cfg.get("max_bins", 10),
+                multi_plot=cfg.get("multi_plot", True),
+                plot_mode=cfg.get("plot_mode", "bars"),
+                value_range=cfg.get("value_range")
+            )
 
-        elif subplot_type == "LineSumPlot":
+        elif cfg["subplot_type"] == "LineSumPlot":
             from utils.pages.visu.plots.plot_lineplot import LineSumPlot
             plot_instance = LineSumPlot(**init_kwargs)
-            plot_kwargs = {
-                "weighting_mode": kwargs["weighting_mode"],
-                "weight_col": kwargs["weight_col"],
-                "multi_plot": kwargs["multi_plot"],
-                "agg_col": kwargs["agg_col"]  # ✅ Add this line!
-            }
-            result = plot_instance.plot(**plot_kwargs)
+            figs = plot_instance.plot(
+                weighting_mode=cfg.get("weighting_mode"),
+                weight_col=cfg.get("weight_col"),
+                multi_plot=cfg.get("multi_plot", True),
+                agg_col=cfg.get("agg_col")
+            )
 
-
-        elif subplot_type == "LineDensityPlot":
+        elif cfg["subplot_type"] == "LineDensityPlot":
             from utils.pages.visu.plots.plot_lineplot import DensityPlot
             plot_instance = DensityPlot(**init_kwargs)
-            plot_kwargs = {
-                "agg_cols": kwargs["agg_col"],
-                "weighting_mode": kwargs["weighting_mode"],
-                "weight_col": kwargs["weight_col"],
-                "multi_plot": kwargs["multi_plot"]
-            }
-            result = plot_instance.plot(**plot_kwargs)
+            figs = plot_instance.plot(
+                agg_cols=cfg.get("agg_col"),
+                weighting_mode=cfg.get("weighting_mode"),
+                weight_col=cfg.get("weight_col"),
+                multi_plot=cfg.get("multi_plot", True)
+            )
 
-        elif subplot_type == "SimpleLineplot":
+        elif cfg["subplot_type"] == "SimpleLineplot":
             from app.utils.pages.visu.plots.lineplot.SimpleLineplot import SimpleLineplot
             plot_instance = SimpleLineplot(**init_kwargs)
-            plot_kwargs = {
-                "x_col": x_col,
-                "y_col": y_col,
-                "multi_plot": kwargs["multi_plot"]
-            }
-            result = plot_instance.plot(**plot_kwargs)
-
-
-        if isinstance(result, tuple):
-            figs, num_cols = result
+            figs = plot_instance.plot(
+                x_col=cfg.get("x_col"),
+                y_col=cfg.get("y_col"),
+                multi_plot=cfg.get("multi_plot", True)
+            )
         else:
-            figs = result
+            figs = None
+
+        # Render results
+        if isinstance(figs, tuple):
+            figs, num_cols = figs
+        else:
             num_cols = None
 
         if isinstance(figs, list):
@@ -338,39 +268,60 @@ class PlotVisu:
                     for col, fig in zip(cols, row_figs):
                         with col:
                             st.pyplot(fig)
-        elif figs:
+        elif figs is not None:
             st.pyplot(figs)
 
+    # -------------------------------
+    # Data Prep
+    # -------------------------------
     def prepare_data(self, col_facet, row_facet, hue_col, fast_mode, max_col_bins,
-                 agg_col=None, weight_col=None, x_col=None, y_col=None):
+                    agg_col=None, weight_col=None, x_col=None, y_col=None):
         df = self.df.copy()
-        if fast_mode:
-            df = df.sample(min(100, len(df)))
+
+        if fast_mode and len(df) > 100:
+            df = df.sample(100)
+
         cols_needed = set()
+        requested = set()
+
         if col_facet:
-            cols_needed.add(col_facet)
+            requested.add(col_facet)
         if row_facet:
-            cols_needed.update(row_facet)
+            requested.update(row_facet if isinstance(row_facet, list) else [row_facet])
         if hue_col:
-            cols_needed.add(hue_col)
+            requested.add(hue_col)
         if isinstance(agg_col, list):
-            cols_needed.update(agg_col)
+            requested.update([c for c in agg_col if c])
         elif agg_col:
-            cols_needed.add(agg_col)
+            requested.add(agg_col)
         if weight_col:
-            cols_needed.add(weight_col)
+            requested.add(weight_col)
         if x_col:
-            cols_needed.add(x_col)
+            requested.add(x_col)
         if y_col:
-            cols_needed.add(y_col)
+            requested.add(y_col)
 
+        # Keep only those actually present in df
+        valid_cols = [c for c in requested if c in df.columns]
+        missing_cols = [c for c in requested if c not in df.columns]
 
+        if missing_cols:
+            logging.warning(f"[prepare_data] Missing columns (dropped): {missing_cols}")
 
-        logger.debug(f"Preparing data with columns needed: {cols_needed}")
-        df = df[list(cols_needed)].copy()
-        if col_facet:
+        if not valid_cols:
+            logging.warning("[prepare_data] No valid columns left → returning empty DataFrame")
+            return pd.DataFrame()
+
+        df = df[valid_cols].copy()
+
+        if col_facet and col_facet in df.columns:
             df = self.reduce_col_facet(df, col_facet, max_col_bins)
+
+        logging.info(f"[prepare_data] Returning df shape={df.shape}, cols={df.columns.tolist()}")
         return df
+
+
+
 
     def reduce_col_facet(self, df, col_facet, max_bins):
         if col_facet not in df.columns:
