@@ -35,7 +35,26 @@ def render_control(name, spec, df, allowed_cols, current_value, key_prefix="", h
     
     elif ctrl_type == "multiselect":
         default = current_value if current_value else []
-        return st.multiselect(name, options, default=default, key=widget_key)
+        # Normalize to list
+        if not isinstance(default, list):
+            default = [default]
+
+        # Keep only defaults that are valid options
+        default = [d for d in default if d in options]
+
+        return st.multiselect(
+            name,
+            options,
+            default=default,
+            key=widget_key,
+            help=help
+        )
+
+    
+    
+    
+    
+    
     elif ctrl_type == "number_input":
         min_val = spec.get("min")
         max_val = spec.get("max")

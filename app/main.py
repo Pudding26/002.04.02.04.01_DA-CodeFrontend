@@ -27,6 +27,7 @@ logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
 
 # If you want your plot logs at DEBUG, configure just that namespace
 logging.getLogger("plotbase").setLevel(logging.DEBUG)
+logging.getLogger("plotvisu").setLevel(logging.DEBUG)
 
 import logging
 

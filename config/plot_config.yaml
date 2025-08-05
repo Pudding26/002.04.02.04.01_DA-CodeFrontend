@@ -23,7 +23,7 @@ plots:
           type: select
           allowed: hue
           required: false
-          doc: Column to overlay histograms with colors
+          doc: Column to color subgroups inside boxes
         max_bins:
           type: number_input
           min: 5
@@ -34,6 +34,45 @@ plots:
           type: checkbox
           default: true
           doc: Show all histograms in a single grid figure
+
+  Boxplot:
+    doc: "Boxplots of numeric values grouped by categories."
+    SimpleBoxplot:
+      doc: |
+        A simple boxplot.
+        - `row_facet`: numeric variable(s) to plot
+        - `col_facet`: category to split into subplot columns
+        - `hue_col`: subgroup categories within each box
+        - `x_col`: optional category to group boxes along the x-axis
+      controls:
+        row_facet:
+          type: multiselect
+          allowed: row
+          required: true
+          doc: Numeric variable(s) to plot
+        col_facet:
+          type: select
+          allowed: col
+          required: false
+          doc: Column to split into subplot columns
+        hue_col:
+          type: select
+          allowed: hue
+          required: false
+          doc: Column to color subgroups inside boxes
+
+        x_col:
+          type: select
+          allowed: col
+          required: true
+          doc: Grouping variable for the x-axis
+
+        multi_plot:
+          type: checkbox
+          default: true
+          doc: Show all boxplots in a single grid figure
+
+
 
     GroupedBarplot:
       doc: |

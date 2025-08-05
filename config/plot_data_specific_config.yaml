@@ -7,7 +7,7 @@ data_specific_config:
       Histogram:
         allowed_row: [knn_acc, rf_acc]
         allowed_hue: [scope, label]
-        allowed_col: [scope, label]
+        allowed_col: [fraq, scope, label]
         customization:
           plot_mode:
             type: segmented_control
@@ -20,6 +20,16 @@ data_specific_config:
             max: 1
             default: [0, 1]
             doc: "X-axis range for histogram"
+      SimpleBoxplot:
+        allowed_row: [knn_acc, rf_acc]
+        allowed_col: [scope, label]
+        allowed_hue: [scope, label]
+        allowed_x: [frac]
+
+
+
+
+
 
       GroupedBarplot:
         allowed_col: [scope, label]
@@ -37,3 +47,10 @@ data_specific_config:
         allowed_row: [scope, label, frac]
         allowed_hue: [scope, label]
         allowed_weight: [initial_row_count, initial_col_count]
+
+    DEAP_summary:
+      SimpleBoxplot:
+        allowed_row: [score_acc, score_sample, gen, score_entropy, pareto_front]
+        allowed_col: [acc_type, sub_branch_id, gen, pareto_front]
+        allowed_hue: [acc_type, sub_branch_id, gen, pareto_front]
+        allowed_x: [acc_type, sub_branch_id, gen, pareto_front]
